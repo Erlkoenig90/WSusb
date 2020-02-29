@@ -6,17 +6,17 @@
 //#define UMEM_FAKEWIDTH word
 
 /* For devices with 1 x 16 bits / word access schema (e.g. STM32F103, STM32F302, STM32F303xB and xC) */
-#define UMEM_SHIFT 1
-#define UMEM_FAKEWIDTH dword
+#define UMEM_SHIFT (1)
+typedef uint32_t UMEM_FAKEWIDTH;
 
 /* The name of the IRQ handler must match startup_stm32.s */
 #define NAME_OF_USB_IRQ_HANDLER USB_LP_CAN_RX0_IRQHandler
 
 /* Take the number from the reference manual of your µC. */
-#define USB_IRQ_NUMBER 20
+#define USB_IRQ_NUMBER (20)
 
 // Enable trace messages
-#define ENABLE_TRACING 0
+#define ENABLE_TRACING (0)
 
 #if ENABLE_TRACING
     #include <stdio.h>
@@ -35,7 +35,7 @@
             {
                 while (ITM_PORT0_32 == 0UL)
                 {
-                    asm volatile("NOP");
+                    __asm__ volatile("NOP");
                 }
                 ITM_PORT0_8 = *ptr;
             }
@@ -195,25 +195,25 @@ volatile int rxr, rxw;
 #define  CTR_TX   (1<<7)
 #define  DTOG_TX  (1<<6)
 #define  STAT_TX  (3<<4)
-#define  MASK_EA  15
+#define  MASK_EA  (15)
 
 /* EndPoint Register Mask (No Toggle Fields) */
 #define EP_NoToggleBits  (CTR_RX|SETUP|EP_TYPE|EP_KIND|CTR_TX|MASK_EA)
 
 /******* Zuordnung physischer Endpunkte 0..7 ********************/
-#define  logEpCtrl      0
-#define  logEpBulkIn    1
-#define  logEpBulkOut   2
-#define  logEpInt       3
+#define  logEpCtrl      (0)
+#define  logEpBulkIn    (1)
+#define  logEpBulkOut   (2)
+#define  logEpInt       (3)
 
 /* für Stall, Unstall usw. */
-#define  phys_In        0x80
+#define  phys_In        (0x80)
 #define  physEpCtrlIn   (0 + 0x80)
-#define  physEpCtrlOut  0
+#define  physEpCtrlOut  (0)
 #define  physEpBulkIn   (1 + 0x80)
-#define  physEpBulkOut  2
+#define  physEpBulkOut  (2)
 #define  physEpIntIn    (3 + 0x80)
-#define  physEpIntOut   3
+#define  physEpIntOut   (3)
 
 /*
  Achtung: Die folgende Sonderlocke bezüglich der Speicher-Lücken gilt nicht für STM32F303xD and xE!
@@ -244,37 +244,37 @@ volatile int rxr, rxw;
  zu je 4 dwords also 4*4 dwords = 64 Bytes macht in Summe 464 Bytes
  */
 
-#define USB_RAM       0x40006000
+#define USB_RAM       (0x40006000)
 
-#define EpCtrlMaxLen  64
+#define EpCtrlMaxLen  (64)
 #define EpCtrlLenId   ((1<<15)|(1<<10))
 
-#define EpBulkMaxLen  64
+#define EpBulkMaxLen  (64)
 #define EpBulkLenId   ((1<<15)|(1<<10))
 
-#define EpIntMaxLen    8
+#define EpIntMaxLen    (8)
 #define EpIntLenId    (4<<10)
 
 /******* Pufferlängen und Längen-Codes *******/
 
 /* EP0 = control */
-#define Ep0TxOffset   0      /* 64 Bytes ab   0 */
-#define Ep0RxOffset   64     /* 64 Bytes ab  64 */
+#define Ep0TxOffset   (0)      /* 64 Bytes ab   0 */
+#define Ep0RxOffset   (64)     /* 64 Bytes ab  64 */
 
 /* EP1 = Bulk-IN */
-#define Ep1TxAOffset  128    /* 64 Bytes ab 128 */
-#define Ep1TxBOffset  192    /* 64 Bytes ab 192 */
+#define Ep1TxAOffset  (128)    /* 64 Bytes ab 128 */
+#define Ep1TxBOffset  (192)    /* 64 Bytes ab 192 */
 
 /* EP2 = Bulk-OUT */
-#define Ep2RxAOffset  256    /* 64 Bytes ab 256 */
-#define Ep2RxBOffset  320    /* 64 Bytes ab 320 */
+#define Ep2RxAOffset  (256)    /* 64 Bytes ab 256 */
+#define Ep2RxBOffset  (320)    /* 64 Bytes ab 320 */
 
 /* EP3 = Int (unbenutzt) */
-#define Ep3TxOffset   384    /* 8 Bytes ab 384 */
-#define Ep3RxOffset   292    /* 8 Bytes ab 392 */
+#define Ep3TxOffset   (384)    /* 8 Bytes ab 384 */
+#define Ep3RxOffset   (292)    /* 8 Bytes ab 392 */
 
 /* EP-Tafel */
-#define EpTableOffset 400    /* 64 Bytes ab 400 */
+#define EpTableOffset (400)    /* 64 Bytes ab 400 */
 
 #define EPControlTxBuffer (USB_RAM + (Ep0TxOffset<<UMEM_SHIFT))
 #define EPControlRxBuffer (USB_RAM + (Ep0RxOffset<<UMEM_SHIFT))
@@ -299,32 +299,32 @@ struct TEpTableEntry
 #define EpTable   ((struct TEpTableEntry *) (USB_RAM + (EpTableOffset<<UMEM_SHIFT)))
 
 /******* Codes der Standard-bRequest's im Setup-Paket ***/
-#define GET_STATUS          0x00
-#define CLEAR_FEATURE       0x01
-#define SET_FEATURE         0x03
-#define SET_ADDRESS         0x05
-#define GET_DESCRIPTOR      0x06
-#define SET_DESCRIPTOR      0x07
-#define GET_CONFIGURATION   0x08
-#define SET_CONFIGURATION   0x09
-#define GET_INTERFACE       0x0A
-#define SET_INTERFACE       0x0B
-#define SYNC_FRAME          0x0C
+#define GET_STATUS          (0x00)
+#define CLEAR_FEATURE       (0x01)
+#define SET_FEATURE         (0x03)
+#define SET_ADDRESS         (0x05)
+#define GET_DESCRIPTOR      (0x06)
+#define SET_DESCRIPTOR      (0x07)
+#define GET_CONFIGURATION   (0x08)
+#define SET_CONFIGURATION   (0x09)
+#define GET_INTERFACE       (0x0A)
+#define SET_INTERFACE       (0x0B)
+#define SYNC_FRAME          (0x0C)
 
 /******* zusätzliche bRequest-Codes für virtuelle ComPorts */
-#define SET_LINE_CODE               0x20    /* 7 Byte Paket mit Baudrate etc. */
-#define GET_LINE_CODE               0x21    /* 7 Byte Paket mit Baudrate etc. */
-#define SET_CONTROL_LINE_STATE      0x22    /* 2 Bit  DTR und RTS */
-#define SEND_BREAK                  0x23    /* hier unbenutzt */
+#define SET_LINE_CODE               (0x20)    /* 7 Byte Paket mit Baudrate etc. */
+#define GET_LINE_CODE               (0x21)    /* 7 Byte Paket mit Baudrate etc. */
+#define SET_CONTROL_LINE_STATE      (0x22)    /* 2 Bit  DTR und RTS */
+#define SEND_BREAK                  (0x23)    /* hier unbenutzt */
 
 /******* Struktur des Setup-Paketes *****/
 struct TSetupPaket
 {
-    byte bmRequestType; /* siehe oben */
-    byte bRequest;      /* siehe Request-Tafel in USB-Doku */
-    word wValue;        /* je nach Request */
-    word wIndex;        /* je nach Request */
-    word wLength;       /* Anzahl Bytes, wenn Data-Stage vorhanden ist */
+    uint8_t bmRequestType; /* siehe oben */
+    uint8_t bRequest;      /* siehe Request-Tafel in USB-Doku */
+    uint16_t wValue;        /* je nach Request */
+    uint16_t wIndex;        /* je nach Request */
+    uint16_t wLength;       /* Anzahl Bytes, wenn Data-Stage vorhanden ist */
 };
 
 /******* Struktur des Kommando- und Org-Datenblockes *******************/
@@ -333,11 +333,11 @@ struct TCommand
     struct TSetupPaket SetupPacket; /* das jeweils letzte Setup-Paket   */
     long TransferLen;               /* noch zum Host zu sendende Anzahl Bytes */
     long PacketLen;                 /* wie lang das Paket zum Host sein darf */
-    byte* TransferPtr;              /* zeigt auf die noch zu sendenden Bytes */
+    uint8_t* TransferPtr;              /* zeigt auf die noch zu sendenden Bytes */
 
     bool RemoteWakeup;
     bool SelfPowered;
-    byte Configuration;
+    uint8_t Configuration;
 };
 
 /* Line coding structure
@@ -348,17 +348,17 @@ struct TCommand
  */
 struct T_LineCoding
 {
-    dword BaudRate;   /* Baud rate    */
-    byte Stopbits;    /* stop bit     */
-    byte ParityType;  /* parity       */
-    byte DataBits;    /* data bits    */
+    uint32_t BaudRate;   /* Baud rate    */
+    uint8_t Stopbits;    /* stop bit     */
+    uint8_t ParityType;  /* parity       */
+    uint8_t DataBits;    /* data bits    */
 };
 
 /************  Variablen *****************************************/
 
 struct TCommand CMD;
 struct T_LineCoding LineCoding;
-word Dtr_Rts;
+uint16_t Dtr_Rts;
 volatile uint8_t DeviceAddress=0;
 
 /************ Funktionen zum Starten des virtuellen COM-Portes *****/
@@ -372,18 +372,18 @@ void Class_Start(void)
     txr = txw = rxr = rxw = 0;
 }
 
-bool Class_Compare(word aValue) /* immer true, wird hier nicht gebraucht */
+bool Class_Compare(uint16_t aValue) /* immer true, wird hier nicht gebraucht */
 {
     return true;
 }
 
 /************* die Descriptoren ************************************/
-#define LEN_DEVICE         18
-#define DESC_DEVICE         1
-#define VID            0x0416   /* Vendor ID (von RealTek) */
-#define PID            0x5011   /* Product ID */
+#define LEN_DEVICE         (18)
+#define DESC_DEVICE         (1)
+#define VID            (0x0416)   /* Vendor ID (von RealTek) */
+#define PID            (0x5011)   /* Product ID */
 
-const byte DeviceDescriptor[] = {
+const uint8_t DeviceDescriptor[] = {
     LEN_DEVICE,     /* bLength              */
     DESC_DEVICE,    /* bDescriptorType      */
     0x00, 0x02,     /* bcdUSB               */
@@ -402,16 +402,16 @@ const byte DeviceDescriptor[] = {
     0x01            /* bNumConfigurations   */
 };
 
-#define LEN_CONFIG          9
-#define DESC_CONFIG         2
+#define LEN_CONFIG          (9)
+#define DESC_CONFIG         (2)
 
-#define LEN_INTERFACE       9
-#define DESC_INTERFACE      4
+#define LEN_INTERFACE       (9)
+#define DESC_INTERFACE      (4)
 
-#define LEN_ENDPOINT        7
-#define DESC_ENDPOINT       5
+#define LEN_ENDPOINT        (7)
+#define DESC_ENDPOINT       (5)
 
-const byte ConfigDescriptor[] = {
+const uint8_t ConfigDescriptor[] = {
     LEN_CONFIG,        /* bLength              */
     DESC_CONFIG,       /* bDescriptorType      */
     0x43, 0x00,        /* wTotalLength         */
@@ -496,14 +496,14 @@ const byte ConfigDescriptor[] = {
     0,                 /* bInterval   2ms probieren         */
 };
 
-#define DESC_STRING         3
-const byte StringLang[] = {
+#define DESC_STRING         (3)
+const uint8_t StringLang[] = {
     4,           /* bLength                  */
     DESC_STRING, /* bDescriptorType          */
     0x09, 0x04   /* Language ID: USA(0x0409) */
 };
 
-const byte VendorStringDescriptor[] = {
+const uint8_t VendorStringDescriptor[] = {
     16,           /* bLength          */
     DESC_STRING, /* bDescriptorType  */
     'N', 0,
@@ -515,7 +515,7 @@ const byte VendorStringDescriptor[] = {
     'n', 0
 };
 
-const byte ProductStringDescriptor[] = {
+const uint8_t ProductStringDescriptor[] = {
     32,          /* bLength          */
     DESC_STRING, /* bDescriptorType  */
     'U', 0,
@@ -534,7 +534,7 @@ const byte ProductStringDescriptor[] = {
     'O', 0,
     'M', 0 };
 
-const byte StringSerial[26] = {
+const uint8_t StringSerial[26] = {
     26,          /* bLength          */
     DESC_STRING, /* bDescriptorType  */
     'N', 0,
@@ -551,14 +551,14 @@ const byte StringSerial[26] = {
     '0', 0 };
 
 /* um Nullbyte oder ein leeres Paket senden zu können */
-const byte always0 = 0;
+const uint8_t always0 = 0;
 
 /************  Hilfsroutinen ************************************************/
 
 void Stall(int physEpNum)
 {
     trace("stall\n");
-    dword D, S, Maske;
+    uint32_t D, S, Maske;
     int logEpNum;
 
     logEpNum = physEpNum & 15;
@@ -579,7 +579,7 @@ void Stall(int physEpNum)
 void UnStall(int physEpNum)
 {
     trace("unstall\n");
-    dword D, S, Maske;
+    uint32_t D, S, Maske;
     int logEpNum;
 
     logEpNum = physEpNum & 15;
@@ -617,7 +617,7 @@ void ClearBuffer(int logEpNum)
         sprintf(buf,"clrBuf logEpNum=%i\n",logEpNum);
         trace(buf);
     #endif
-    dword D, Maske;
+    uint32_t D, Maske;
     Maske = EP_NoToggleBits | STAT_RX; /* ohne STAT_TX und ohne beide DTOG_x */
     D = USB_EpRegs(logEpNum);
     USB_EpRegs(logEpNum) = (D ^ STAT_RX) & Maske;
@@ -631,13 +631,13 @@ void ValidateBuffer(int logEpNum)
         sprintf(buf,"validateBuf logEpNum=%i\n",logEpNum);
         trace(buf);
     #endif
-    dword D, Maske;
+    uint32_t D, Maske;
     Maske = EP_NoToggleBits | STAT_TX; /* ohne STAT_RX und ohne beide DTOG_x */
     D = USB_EpRegs(logEpNum);
     USB_EpRegs(logEpNum) = (D ^ STAT_TX) & Maske;
 }
 
-bool USB_SetAddress(byte adr)
+bool USB_SetAddress(uint8_t adr)
 {
     #if ENABLE_TRACING
         char buf[30];
@@ -723,16 +723,16 @@ void InitEndpoints(void)
     USB_SetAddress(0);
 }
 
-void Nop(dword count)
+void Nop(uint32_t count)
 {
     while (count)
     {
-        asm volatile ("NOP");
+        __asm__ volatile ("NOP");
         count--;
     }
 }
 
-int ReadControlBlock(byte* PBuffer, int maxlen)
+int ReadControlBlock(uint8_t* PBuffer, int maxlen)
 {
     int count, i, n;
     UMEM_FAKEWIDTH D;
@@ -771,7 +771,7 @@ int ReadControlBlock(byte* PBuffer, int maxlen)
     return count;
 }
 
-int WriteControlBlock(byte* PBuffer, int count)
+int WriteControlBlock(uint8_t* PBuffer, int count)
 {
     #if ENABLE_TRACING
         char buf[30];
@@ -815,7 +815,7 @@ int WriteControlBlock(byte* PBuffer, int count)
 
 void ACK(void)
 {
-    WriteControlBlock((byte*) &always0, 0);
+    WriteControlBlock((uint8_t*) &always0, 0);
 }
 
 /* Request-Typ im Setup-Packet testen (Standard, Class, Vendor) */
@@ -838,7 +838,7 @@ bool IsVendorRequest(void)
 void DescriptorBlockwiseIn(void)
 {
     int i, j;
-    byte* Q;
+    uint8_t* Q;
 
     if ((CMD.SetupPacket.bmRequestType & 0x80) == 0)
     {
@@ -909,7 +909,7 @@ void DoSetClearFeature(bool value)
 /******** USB-Request "GET STATUS" behandeln ***************************/
 void DoGetStatus(void)
 {
-    byte Buf[4];
+    uint8_t Buf[4];
     int FuerWen;
     int EP;
 
@@ -960,9 +960,9 @@ void DoGetStatus(void)
 /******** Descriptoren zum Host senden *********************************/
 void DoGetDescriptor(void)
 {
-    word Type, Index;
+    uint16_t Type, Index;
     int aLen;
-    const byte* P;
+    const uint8_t* P;
 
     Type = CMD.SetupPacket.wValue >> 8;
     Index = CMD.SetupPacket.wValue & 0xFF;
@@ -1038,7 +1038,7 @@ void DoGetDescriptor(void)
         aLen = CMD.SetupPacket.wLength;
     CMD.PacketLen = EpCtrlMaxLen;
     CMD.TransferLen = aLen;
-    CMD.TransferPtr = (byte*) P;
+    CMD.TransferPtr = (uint8_t*) P;
     DescriptorBlockwiseIn();
 }
 
@@ -1083,7 +1083,7 @@ void VCOM_SetLineCoding(void)
 /* hier werden die empfangenen 7 Bytes aus dem USB-Puffer gelesen und im RAM gemerkt */
 void SetLineCodingDataOut(void)
 {
-    ReadControlBlock((byte*) &LineCoding, 7);
+    ReadControlBlock((uint8_t*) &LineCoding, 7);
     ACK();
 }
 
@@ -1099,7 +1099,7 @@ void VCOM_GetLineCoding(void)
 {
     CMD.PacketLen = EpCtrlMaxLen;
     CMD.TransferLen = 7;
-    CMD.TransferPtr = (byte*) &LineCoding;
+    CMD.TransferPtr = (uint8_t*) &LineCoding;
     DescriptorBlockwiseIn(); /* hier werden die 7 Bytes zum Host geschickt */
 }
 
@@ -1123,7 +1123,7 @@ void VCOM_GetLineCoding(void)
  als ACK ein leeres Paket.
  */
 
-void OnSetup(word EpCtrlStatus)
+void OnSetup(uint16_t EpCtrlStatus)
 {
     ReadControlBlock(&CMD.SetupPacket.bmRequestType, 8);
 
@@ -1151,7 +1151,7 @@ void OnSetup(word EpCtrlStatus)
             trace("GET_CONFIGURATION\n");
             CMD.PacketLen = EpCtrlMaxLen;
             CMD.TransferLen = 1;
-            CMD.TransferPtr = (byte*) &CMD.Configuration;
+            CMD.TransferPtr = (uint8_t*) &CMD.Configuration;
             DescriptorBlockwiseIn();
             return;
 
@@ -1163,7 +1163,7 @@ void OnSetup(word EpCtrlStatus)
         case GET_INTERFACE:
             trace("GET_INTERFACE\n");
             CMD.TransferLen = 1;
-            CMD.TransferPtr = (byte*) &always0;
+            CMD.TransferPtr = (uint8_t*) &always0;
             DescriptorBlockwiseIn();
             return;
 
@@ -1226,9 +1226,9 @@ void OnSetup(word EpCtrlStatus)
 
 /******* die diversen Endpoint-Interrupts ************************************/
 
-void OnEpCtrlOut(word EpCtrlStatus) /* Control-EP OUT */
+void OnEpCtrlOut(uint16_t EpCtrlStatus) /* Control-EP OUT */
 {
-    byte tbuf[EpCtrlMaxLen];
+    uint8_t tbuf[EpCtrlMaxLen];
 
     if (IsStandardRequest()) /* wenn Type = Standard */
     {
@@ -1260,7 +1260,7 @@ void OnEpCtrlOut(word EpCtrlStatus) /* Control-EP OUT */
     ACK();
 }
 
-void OnEpCtrlIn(word EpCtrlStatus) /* Control-EP IN */
+void OnEpCtrlIn(uint16_t EpCtrlStatus) /* Control-EP IN */
 {
     if (IsStandardRequest()) /* wenn Type = Standard */
     {
@@ -1378,9 +1378,9 @@ void OnEpIntOut(void) /* Int-EP IN */
 void NAME_OF_USB_IRQ_HANDLER(void)
 {
     //trace("irq\n");
-    dword I;
+    uint32_t I;
     int EpNum;
-    word EpStatus;
+    uint16_t EpStatus;
 
     I = USB_ISTR; /* Interrupt-Status nach I  */
 
@@ -1499,13 +1499,13 @@ void NAME_OF_USB_IRQ_HANDLER(void)
 /************  USB-Setup **********************************/
 /* Clock muss bereits konfiguriert sein                   */
 /**********************************************************/
-word UsbSetup(void)
+uint16_t UsbSetup(void)
 {
     trace("setup\n");
-    dword* P;
+    uint32_t* P;
 
-    P = (dword*) USB_RAM; /* RAM ablöschen  */
-    while ((dword) P < (USB_RAM + 1024))
+      P = (uint32_t*) USB_RAM; /* RAM ablöschen  */
+    while ((uint32_t) P < (USB_RAM + 1024))
         *P++ = 0;
 
     Class_Start();            /* LineCoding-Block aufsetzen mit unseren Defaultwerten */
