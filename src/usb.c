@@ -46,6 +46,22 @@ typedef uint32_t UMEM_FAKEWIDTH;
     #define trace(msg) // nothing
 #endif
 
+__attribute__( ( always_inline ) ) inline void __enable_irq(void)
+{
+  __asm__ volatile ("cpsie i" : : : "memory");
+}
+
+
+/**
+  \brief   Disable IRQ Interrupts
+  \details Disables IRQ interrupts by setting the I-bit in the CPSR.
+  Can only be executed in Privileged modes.
+ */
+__attribute__( ( always_inline ) ) inline void __disable_irq(void)
+{
+  __asm__ volatile ("cpsid i" : : : "memory");
+}
+
 /*
 Example trace messages with Linux:
 [12:38:53:344] setup␊
@@ -130,6 +146,7 @@ volatile int txr, txw;
 #define rxLen  256
 volatile char UsbRxBuf[rxLen];
 volatile int rxr, rxw;
+volatile bool receiving = false, transmitting = false;
 
 /***************************  Konstanten ********************************/
 /* Cortex-M NVIC Register */
@@ -370,6 +387,7 @@ void Class_Start(void)
     LineCoding.DataBits = 8;
     Dtr_Rts = 0;
     txr = txw = rxr = rxw = 0;
+    receiving = true;
 }
 
 bool Class_Compare(uint16_t aValue) /* immer true, wird hier nicht gebraucht */
@@ -718,8 +736,8 @@ void InitEndpoints(void)
     USB_ISTR = 0;          /* pending Interrupts beseitigen */
     USB_CNTR =
         CTRM |             /* Int bei ACKed Paketen in oder out */
-        RESETM |           /* Int bei Reset */
-        SOFM;              /* Int bei 1 ms Frame */
+        RESETM;            /* Int bei Reset */
+//        SOFM;              /* Int bei 1 ms Frame */
     USB_SetAddress(0);
 }
 
@@ -1286,16 +1304,11 @@ void OnEpCtrlIn(uint16_t EpCtrlStatus) /* Control-EP IN */
 
 /********* BULK IN und OUT Interrupts **********/
 
-void OnEpBulkIn(void) /* EP1 = Bulk-EP IN */
-{
+void EpBulkBeginTransmit (void) {
     int i, n;
     UMEM_FAKEWIDTH L, A;
     UMEM_FAKEWIDTH* P;
 
-    /* bei STM32 muß man offenbar den Frame-Int benutzen, um alle 1 ms nach dem Rechten zu schauen. */
-
-    if (txr == txw)
-        return;
     P = (UMEM_FAKEWIDTH*) EP1TxABuffer;
     i = txw - txr;
     if (i < 0)
@@ -1305,6 +1318,7 @@ void OnEpBulkIn(void) /* EP1 = Bulk-EP IN */
     A = 0;
     n = 0;
     EpTable[1].TxCount = (i & 0x3FF) | EpBulkLenId;
+    transmitting = true;
 
     while (i)
     {
@@ -1325,6 +1339,15 @@ void OnEpBulkIn(void) /* EP1 = Bulk-EP IN */
     ValidateBuffer(logEpBulkIn);
 }
 
+void OnEpBulkIn(void) /* EP1 = Bulk-EP IN */
+{
+    if (txr == txw)
+    	transmitting = false;
+    else
+    	EpBulkBeginTransmit ();
+}
+
+
 void OnEpBulkOut(void) /* EP2 = Bulk-EP OUT */
 {
     int i, n, hdroom, avail;
@@ -1339,8 +1362,10 @@ void OnEpBulkOut(void) /* EP2 = Bulk-EP OUT */
     if (i < 0)
         i += rxLen;
     hdroom = rxLen - i;
-    if (hdroom <= avail)
+    if (hdroom <= avail) {
+    	receiving = false;
         return;
+    }
 
     P = (UMEM_FAKEWIDTH*) EP2RxBBuffer;
     n = 2;
@@ -1360,7 +1385,11 @@ void OnEpBulkOut(void) /* EP2 = Bulk-EP OUT */
         }
         --i;
     }
-    ClearBuffer(logEpBulkOut); /* wir haben's gelesen */
+
+    if (hdroom - avail >= EpBulkMaxLen)
+    	ClearBuffer(logEpBulkOut); /* wir haben's gelesen */
+    else
+    	receiving = false;
 }
 
 void OnEpIntIn(void) /* Int-EP IN */
@@ -1420,7 +1449,7 @@ void NAME_OF_USB_IRQ_HANDLER(void)
     {
         //trace("SOF\n");
         USB_ISTR = ~SOF; /* Int löschen */
-        OnEpBulkIn();  /* immer mal nachschauen... */
+//        OnEpBulkIn();  /* immer mal nachschauen... */
     }
 
     if (I & ESOF) /* Wenn ein SOF Paket fehlt */
@@ -1482,9 +1511,9 @@ void NAME_OF_USB_IRQ_HANDLER(void)
                 trace("logEpCtrl\n");
                 OnEpCtrlIn(EpStatus);
             }
-            if (EpNum == logEpBulkOut)
+            if (EpNum == logEpBulkIn)
             {
-                trace("logEpBulkOut\n");
+                trace("logEpBulkIn\n");
                 OnEpBulkIn();
             }
             if (EpNum == logEpInt)
@@ -1529,9 +1558,10 @@ uint16_t UsbSetup(void)
 /* liefert true, wenn ein Zeichen abholbereit ist */
 bool UsbRxAvail(void)
 {
-    if (rxr != rxw)
-        return true;
-    return false;
+	__disable_irq ();
+	bool res = rxr != rxw;
+	__enable_irq ();
+    return res;
 }
 
 /* holt ein Zeichen vom USB ab */
@@ -1541,37 +1571,58 @@ char UsbGetChar(void)
     char c;
 
     c = 0;
+    __disable_irq ();
     if (rxr != rxw)
     {
         c = UsbRxBuf[rxr];
         rxr = (rxr + 1) & (rxLen - 1);
+
+        if (!receiving) {
+            int i, hdroom;
+
+            i = rxw - rxr;
+            if (i < 0)
+                i += rxLen;
+            hdroom = rxLen - i;
+
+            if (hdroom > EpBulkMaxLen) {
+            	receiving = true;
+            	ClearBuffer(logEpBulkOut);
+            }
+        }
     }
+	__enable_irq ();
     return c;
 }
 
 /* liefert true, wenn noch ein Zeichen in den Tx-Buffer passt */
 bool UsbTxReady(void)
 {
-    int i;
-    i = (txw + 1) & (txLen - 1);
-    if (i == txr)
-        return false;
-    return true;
+    __disable_irq ();
+    bool res = ((txw + 1) & (txLen - 1)) != txr;
+    __enable_irq ();
+
+    return res;
 }
 
 /* liefert true, wenn Tx-Buffer leer ist */
 bool UsbTxEmpty(void)
 {
-    return (txw == txr);
+	__disable_irq ();
+    bool res = (txw == txr);
+    __enable_irq ();
+    return res;
 }
 
 /* Anzahl freier Plätze im Tx-Buffer liefern */
 int UsbTxFree(void)
 {
     int i;
+    __disable_irq ();
     i = txw - txr; /* i = belegte Plätze */
     if (i < 0)
         i = i + txLen;
+    __enable_irq ();
     return txLen - i;
 }
 
@@ -1579,11 +1630,22 @@ int UsbTxFree(void)
 char UsbCharOut(char c)
 {
     int i;
-    i = (txw + 1) & (txLen - 1);
+
     while (!UsbTxReady())
-        ; /* trampeln auf der Stelle!! */
+        __asm__ volatile ("wfi"); /* trampeln auf der Stelle!! */
+
+    __disable_irq ();
+    i = (txw + 1) & (txLen - 1);
     UsbTxBuf[txw] = c;
     txw = i;
+
+//    if (((txw + 1) & (txLen - 1)) != txr) {
+		if (!transmitting) {
+			EpBulkBeginTransmit ();
+		}
+//    }
+	__enable_irq ();
+
     return c;
 }
 
