@@ -150,7 +150,7 @@ volatile bool receiving = false, transmitting = false;
 
 /***************************  Konstanten ********************************/
 /* Cortex-M NVIC Register */
-#define NVIC_ISER0  (*(volatile unsigned long *)(0xE000E100)) /* Int's  0..31 */
+#define NVIC_ISER  (*(volatile uint32_t (*) [16])(0xE000E100))
 
 /*
  Alle USB-Register sind 16 Bit breit, müssen aber 32 bittig gelesen und geschrieben werden
@@ -159,21 +159,21 @@ volatile bool receiving = false, transmitting = false;
 
 /* USB device (base address 0x4000 5C00) */
 #define USB_BASE      0x40005C00
-#define USB_EpRegs(x) (*(volatile unsigned int  *)(0x40005C00 + 4*(x)))
-#define USB_EP0R      (*(volatile unsigned long *)(0x40005C00))
-#define USB_EP1R      (*(volatile unsigned long *)(0x40005C04))
-#define USB_EP2R      (*(volatile unsigned long *)(0x40005C08))
-#define USB_EP3R      (*(volatile unsigned long *)(0x40005C0C))
-#define USB_EP4R      (*(volatile unsigned long *)(0x40005C10))
-#define USB_EP5R      (*(volatile unsigned long *)(0x40005C14))
-#define USB_EP6R      (*(volatile unsigned long *)(0x40005C18))
-#define USB_EP7R      (*(volatile unsigned long *)(0x40005C1C))
+#define USB_EpRegs(x) (*(volatile uint32_t *)(0x40005C00 + 4*(x)))
+#define USB_EP0R      (*(volatile uint32_t *)(0x40005C00))
+#define USB_EP1R      (*(volatile uint32_t *)(0x40005C04))
+#define USB_EP2R      (*(volatile uint32_t *)(0x40005C08))
+#define USB_EP3R      (*(volatile uint32_t *)(0x40005C0C))
+#define USB_EP4R      (*(volatile uint32_t *)(0x40005C10))
+#define USB_EP5R      (*(volatile uint32_t *)(0x40005C14))
+#define USB_EP6R      (*(volatile uint32_t *)(0x40005C18))
+#define USB_EP7R      (*(volatile uint32_t *)(0x40005C1C))
 
-#define USB_CNTR      (*(volatile unsigned long *)(0x40005C40))
-#define USB_ISTR      (*(volatile unsigned long *)(0x40005C44))
-#define USB_FNR       (*(volatile unsigned long *)(0x40005C48))
-#define USB_DADDR     (*(volatile unsigned long *)(0x40005C4C))
-#define USB_BTABLE    (*(volatile unsigned long *)(0x40005C50))
+#define USB_CNTR      (*(volatile uint32_t *)(0x40005C40))
+#define USB_ISTR      (*(volatile uint32_t *)(0x40005C44))
+#define USB_FNR       (*(volatile uint32_t *)(0x40005C48))
+#define USB_DADDR     (*(volatile uint32_t *)(0x40005C4C))
+#define USB_BTABLE    (*(volatile uint32_t *)(0x40005C50))
 
 /* Bits in USB_CNTR */
 #define  FRES     (1<<0)
@@ -1543,7 +1543,7 @@ uint16_t UsbSetup(void)
     USB_CNTR = 1;             /* Reset  */
     USB_ISTR = 0;             /* spurious Ints beseitigen */
     Nop(1000);                /* warten */
-    NVIC_ISER0 |= (1UL << USB_IRQ_NUMBER);  /* Interrupt 20=USB, enable */
+    NVIC_ISER[USB_IRQ_NUMBER/32] = ((uint32_t) 1) << (USB_IRQ_NUMBER % 32);
     InitEndpoints();
     return 0;
 }
