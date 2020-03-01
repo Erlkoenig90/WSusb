@@ -9,8 +9,8 @@
 #define UMEM_SHIFT (1)
 typedef uint32_t UMEM_FAKEWIDTH;
 
-/* The name of the IRQ handler must match startup_stm32.s */
-#define NAME_OF_USB_IRQ_HANDLER USB_LP_CAN_RX0_IRQHandler
+/* The name of the IRQ handler must match startup.S */
+#define NAME_OF_USB_IRQ_HANDLER USB_LP_CAN1_RX0_IRQHandler
 
 /* Take the number from the reference manual of your µC. */
 #define USB_IRQ_NUMBER (20)
@@ -136,6 +136,10 @@ volatile bool receiving = false, transmitting = false;
 /* Cortex-M NVIC Register */
 #define NVIC_ISER  (*(volatile uint32_t (*) [16])(0xE000E100))
 #define NVIC_ICER  (*(volatile uint32_t (*) [16])(0xE000E180))
+
+#define RCC_APB1ENR   (*(volatile uint32_t*) (0x4002101C))
+
+#define RCC_APB1ENR_USBEN	(1 << 23)
 
 /*
  Alle USB-Register sind 16 Bit breit, müssen aber 32 bittig gelesen und geschrieben werden
@@ -1523,6 +1527,8 @@ void NAME_OF_USB_IRQ_HANDLER(void)
 /**********************************************************/
 uint16_t UsbSetup(void)
 {
+	RCC_APB1ENR |= RCC_APB1ENR_USBEN;
+
     trace("setup\n");
     uint32_t* P;
 
@@ -1619,6 +1625,15 @@ int UsbTxFree(void)
     return txLen - i;
 }
 
+void UsbTxFlush (void) {
+    DisableUsbIRQ ();
+	if (!transmitting) {
+		EpBulkBeginTransmit ();
+	}
+	EnableUsbIRQ ();
+}
+
+
 /* sendet ein Zeichen (d.h. schreibt es in den Tx-Buffer) */
 char UsbCharOut(char c)
 {
@@ -1632,7 +1647,8 @@ char UsbCharOut(char c)
     UsbTxBuf[txw] = c;
     txw = i;
 
-//    if (((txw + 1) & (txLen - 1)) != txr) {
+    /* Diese Bedingung einkommentieren, um nur dann automatisch abzusenden, wenn Sendepuffer voll. In diesem Fall kann über UsbTxFlush abgeschickt werden. */
+//    if (((txw + 1) & (txLen - 1)) == txr) {
 		if (!transmitting) {
 			EpBulkBeginTransmit ();
 		}

@@ -14,6 +14,7 @@ bool UsbTxEmpty(void);   /* true, wenn der Sendepuffer total leer ist */
 int UsbTxFree(void);     /* Anzahl freier Plätze im Sendepuffer */
 char UsbCharOut(char c); /* sendet ein Char zum Host */
 void UsbStrOut(char* S); /* sendet einen String zum Host */
+void UsbTxFlush (void);	 /* Sende alles im Puffer befindliche ab (asynchron, nicht-blockierend) */
 uint16_t UsbSetup(void);     /* Starten des USB-Cores */
 
 #endif
