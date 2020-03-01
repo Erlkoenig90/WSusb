@@ -46,22 +46,6 @@ typedef uint32_t UMEM_FAKEWIDTH;
     #define trace(msg) // nothing
 #endif
 
-__attribute__( ( always_inline ) ) inline void __enable_irq(void)
-{
-  __asm__ volatile ("cpsie i" : : : "memory");
-}
-
-
-/**
-  \brief   Disable IRQ Interrupts
-  \details Disables IRQ interrupts by setting the I-bit in the CPSR.
-  Can only be executed in Privileged modes.
- */
-__attribute__( ( always_inline ) ) inline void __disable_irq(void)
-{
-  __asm__ volatile ("cpsid i" : : : "memory");
-}
-
 /*
 Example trace messages with Linux:
 [12:38:53:344] setup␊
@@ -151,6 +135,7 @@ volatile bool receiving = false, transmitting = false;
 /***************************  Konstanten ********************************/
 /* Cortex-M NVIC Register */
 #define NVIC_ISER  (*(volatile uint32_t (*) [16])(0xE000E100))
+#define NVIC_ICER  (*(volatile uint32_t (*) [16])(0xE000E180))
 
 /*
  Alle USB-Register sind 16 Bit breit, müssen aber 32 bittig gelesen und geschrieben werden
@@ -572,6 +557,14 @@ const uint8_t StringSerial[26] = {
 const uint8_t always0 = 0;
 
 /************  Hilfsroutinen ************************************************/
+
+void EnableUsbIRQ (void) {
+    NVIC_ISER[USB_IRQ_NUMBER/32] = ((uint32_t) 1) << (USB_IRQ_NUMBER % 32);
+}
+
+void DisableUsbIRQ (void) {
+    NVIC_ICER[USB_IRQ_NUMBER/32] = ((uint32_t) 1) << (USB_IRQ_NUMBER % 32);
+}
 
 void Stall(int physEpNum)
 {
@@ -1543,7 +1536,7 @@ uint16_t UsbSetup(void)
     USB_CNTR = 1;             /* Reset  */
     USB_ISTR = 0;             /* spurious Ints beseitigen */
     Nop(1000);                /* warten */
-    NVIC_ISER[USB_IRQ_NUMBER/32] = ((uint32_t) 1) << (USB_IRQ_NUMBER % 32);
+    EnableUsbIRQ();
     InitEndpoints();
     return 0;
 }
@@ -1558,9 +1551,9 @@ uint16_t UsbSetup(void)
 /* liefert true, wenn ein Zeichen abholbereit ist */
 bool UsbRxAvail(void)
 {
-	__disable_irq ();
+	DisableUsbIRQ ();
 	bool res = rxr != rxw;
-	__enable_irq ();
+	EnableUsbIRQ ();
     return res;
 }
 
@@ -1571,7 +1564,7 @@ char UsbGetChar(void)
     char c;
 
     c = 0;
-    __disable_irq ();
+    DisableUsbIRQ ();
     if (rxr != rxw)
     {
         c = UsbRxBuf[rxr];
@@ -1591,16 +1584,16 @@ char UsbGetChar(void)
             }
         }
     }
-	__enable_irq ();
+	EnableUsbIRQ ();
     return c;
 }
 
 /* liefert true, wenn noch ein Zeichen in den Tx-Buffer passt */
 bool UsbTxReady(void)
 {
-    __disable_irq ();
+    DisableUsbIRQ ();
     bool res = ((txw + 1) & (txLen - 1)) != txr;
-    __enable_irq ();
+    EnableUsbIRQ ();
 
     return res;
 }
@@ -1608,9 +1601,9 @@ bool UsbTxReady(void)
 /* liefert true, wenn Tx-Buffer leer ist */
 bool UsbTxEmpty(void)
 {
-	__disable_irq ();
+	DisableUsbIRQ ();
     bool res = (txw == txr);
-    __enable_irq ();
+    EnableUsbIRQ ();
     return res;
 }
 
@@ -1618,11 +1611,11 @@ bool UsbTxEmpty(void)
 int UsbTxFree(void)
 {
     int i;
-    __disable_irq ();
+    DisableUsbIRQ ();
     i = txw - txr; /* i = belegte Plätze */
     if (i < 0)
         i = i + txLen;
-    __enable_irq ();
+    EnableUsbIRQ ();
     return txLen - i;
 }
 
@@ -1634,7 +1627,7 @@ char UsbCharOut(char c)
     while (!UsbTxReady())
         __asm__ volatile ("wfi"); /* trampeln auf der Stelle!! */
 
-    __disable_irq ();
+    DisableUsbIRQ ();
     i = (txw + 1) & (txLen - 1);
     UsbTxBuf[txw] = c;
     txw = i;
@@ -1644,7 +1637,7 @@ char UsbCharOut(char c)
 			EpBulkBeginTransmit ();
 		}
 //    }
-	__enable_irq ();
+	EnableUsbIRQ ();
 
     return c;
 }
