@@ -9,6 +9,7 @@
 /* Liste der von aussen zu benutzenden Funktionen */
 bool UsbRxAvail(void);   /* true, wenn Char's vom Host abholbar sind */
 char UsbGetChar(void);   /* liest ein Char vom Host */
+bool UsbConfigured (void); /* true, wenn der Host per SET_CONFIGURATION eine Konfiguration aktiviert hat. Vorher ist keine VCP-Kommunikation möglich. */
 bool UsbTxReady(void);   /* true, wenn mindestens 1 Char gesendet werden kann */
 bool UsbTxEmpty(void);   /* true, wenn der Sendepuffer total leer ist */
 int UsbTxFree(void);     /* Anzahl freier Plätze im Sendepuffer */

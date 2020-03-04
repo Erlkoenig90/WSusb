@@ -1081,8 +1081,10 @@ void DoSetConfiguration(void)
         CMD.Configuration = CMD.SetupPacket.wValue & 0xFF;
         ACK();
     }
-    else
+    else {
+    	CMD.Configuration = 0;
         Stall(0);
+    }
 }
 
 /*************************** CDC Spezifisches **************************/
@@ -1536,6 +1538,7 @@ uint16_t UsbSetup(void)
     while ((uint32_t) P < (USB_RAM + 1024))
         *P++ = 0;
 
+    CMD.Configuration = 0;
     Class_Start();            /* LineCoding-Block aufsetzen mit unseren Defaultwerten */
     USB_CNTR = 3;             /* Powerdown+Reset */
     Nop(100);                 /* warten */
@@ -1571,6 +1574,11 @@ char UsbGetChar(void)
 
     c = 0;
     DisableUsbIRQ ();
+    if (CMD.Configuration == 0) {
+    	EnableUsbIRQ ();
+    	return -1;
+    }
+
     if (rxr != rxw)
     {
         c = UsbRxBuf[rxr];
@@ -1594,11 +1602,20 @@ char UsbGetChar(void)
     return c;
 }
 
+/* true, wenn der Host per SET_CONFIGURATION eine Konfiguration aktiviert hat. Vorher ist keine VCP-Kommunikation möglich. */
+bool UsbConfigured (void) {
+    DisableUsbIRQ ();
+    bool res = CMD.Configuration != 0;
+    EnableUsbIRQ ();
+
+    return res;
+}
+
 /* liefert true, wenn noch ein Zeichen in den Tx-Buffer passt */
 bool UsbTxReady(void)
 {
     DisableUsbIRQ ();
-    bool res = ((txw + 1) & (txLen - 1)) != txr;
+    bool res = CMD.Configuration != 0 && ((txw + 1) & (txLen - 1)) != txr;
     EnableUsbIRQ ();
 
     return res;
@@ -1639,6 +1656,12 @@ char UsbCharOut(char c)
 {
     int i;
 
+    DisableUsbIRQ ();
+    if (CMD.Configuration == 0) {
+    	EnableUsbIRQ ();
+    	return -1;
+    }
+
     while (!UsbTxReady())
         __asm__ volatile ("wfi"); /* trampeln auf der Stelle!! */
 
@@ -1661,6 +1684,12 @@ char UsbCharOut(char c)
 /* asciiz zum USB senden */
 void UsbStrOut(char* S)
 {
+    DisableUsbIRQ ();
+    if (CMD.Configuration == 0) {
+    	EnableUsbIRQ ();
+    	return;
+    }
+
     while (*S)
         UsbCharOut(*S++);
 }
