@@ -1661,6 +1661,7 @@ char UsbCharOut(char c)
     	EnableUsbIRQ ();
     	return -1;
     }
+	EnableUsbIRQ ();
 
     while (!UsbTxReady())
         __asm__ volatile ("wfi"); /* trampeln auf der Stelle!! */
@@ -1689,6 +1690,7 @@ void UsbStrOut(char* S)
     	EnableUsbIRQ ();
     	return;
     }
+	EnableUsbIRQ ();
 
     while (*S)
         UsbCharOut(*S++);
