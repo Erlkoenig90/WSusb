@@ -366,6 +366,7 @@ struct TCommand CMD;
 struct T_LineCoding LineCoding;
 uint16_t Dtr_Rts;
 volatile uint8_t DeviceAddress=0;
+volatile bool suspended, configurationSet;
 
 /************ Funktionen zum Starten des virtuellen COM-Portes *****/
 void Class_Start(void)
@@ -377,6 +378,7 @@ void Class_Start(void)
     Dtr_Rts = 0;
     txr = txw = rxr = rxw = 0;
     receiving = true;
+    transmitting = false;
 }
 
 bool Class_Compare(uint16_t aValue) /* immer true, wird hier nicht gebraucht */
@@ -679,6 +681,9 @@ void InitEndpoints(void)
     CMD.PacketLen = 0;     /* keine Transfers an */
     CMD.TransferPtr = 0;
     USB_CNTR = 0;          /* alle Ints aus */
+    suspended = false;
+    configurationSet = false;
+    transmitting = false;
 
     /* EP0 = Control, IN und OUT */
     EpTable[0].TxOffset = Ep0TxOffset;
@@ -733,8 +738,9 @@ void InitEndpoints(void)
     USB_ISTR = 0;          /* pending Interrupts beseitigen */
     USB_CNTR =
         CTRM |             /* Int bei ACKed Paketen in oder out */
-        RESETM;            /* Int bei Reset */
-//        SOFM;              /* Int bei 1 ms Frame */
+        RESETM |            /* Int bei Reset */
+		SUSPM | WKUPM | ESOFM |
+        SOFM;              /* Int bei 1 ms Frame */
     USB_SetAddress(0);
 }
 
@@ -1073,16 +1079,19 @@ void DoSetConfiguration(void)
     if (CMD.SetupPacket.wValue == 0)
     {
         CMD.Configuration = CMD.SetupPacket.wValue & 0xFF;
+        configurationSet = false;
     }
     else if (haveConfig)
     {
         USB_ConfigDevice(true);
         Class_Start();
         CMD.Configuration = CMD.SetupPacket.wValue & 0xFF;
+        configurationSet = true;
         ACK();
     }
     else {
     	CMD.Configuration = 0;
+        configurationSet = false;
         Stall(0);
     }
 }
@@ -1427,18 +1436,24 @@ void NAME_OF_USB_IRQ_HANDLER(void)
     if (I & WKUP) /* Suspend-->Resume */
     {
         trace("WKUP\n");
+        USB_CNTR &= ~(FSUSP | LP_MODE);
         USB_ISTR = ~WKUP; /* Int löschen */
+        suspended = false;
     }
 
     if (I & SUSP) /* nach 3 ms Pause -->Suspend */
     {
         trace("SUSP\n");
         USB_ISTR = ~SUSP; /* Int löschen */
+        suspended = true;
+        USB_CNTR |= (FSUSP | LP_MODE);
     }
 
     if (I & RESET) /* Bus Reset */
     {
         trace("RESET\n");
+        CMD.Configuration = 0;
+        configurationSet = false;
         InitEndpoints();
         USB_ISTR = ~RESET; /* Int löschen */
         return;
@@ -1448,6 +1463,7 @@ void NAME_OF_USB_IRQ_HANDLER(void)
     {
         //trace("SOF\n");
         USB_ISTR = ~SOF; /* Int löschen */
+        suspended = false;
 //        OnEpBulkIn();  /* immer mal nachschauen... */
     }
 
@@ -1455,6 +1471,7 @@ void NAME_OF_USB_IRQ_HANDLER(void)
     {
         trace("ESOF\n");
         USB_ISTR = ~ESOF; /* Int löschen */
+        suspended = true;
     }
 
     /* Endpoint Interrupts */
@@ -1539,6 +1556,8 @@ uint16_t UsbSetup(void)
         *P++ = 0;
 
     CMD.Configuration = 0;
+    configurationSet = false;
+    suspended = false;
     Class_Start();            /* LineCoding-Block aufsetzen mit unseren Defaultwerten */
     USB_CNTR = 3;             /* Powerdown+Reset */
     Nop(100);                 /* warten */
@@ -1574,7 +1593,7 @@ char UsbGetChar(void)
 
     c = 0;
     DisableUsbIRQ ();
-    if (CMD.Configuration == 0) {
+    if (!configurationSet || suspended) {
     	EnableUsbIRQ ();
     	return -1;
     }
@@ -1602,10 +1621,10 @@ char UsbGetChar(void)
     return c;
 }
 
-/* true, wenn der Host per SET_CONFIGURATION eine Konfiguration aktiviert hat. Vorher ist keine VCP-Kommunikation möglich. */
-bool UsbConfigured (void) {
+/* true, wenn der Host per SET_CONFIGURATION eine Konfiguration aktiviert hat und das Gerät nicht im Suspend ist. Ansonsten ist keine VCP-Kommunikation möglich. */
+bool UsbActive (void) {
     DisableUsbIRQ ();
-    bool res = CMD.Configuration != 0;
+    bool res = configurationSet && !suspended;
     EnableUsbIRQ ();
 
     return res;
@@ -1615,7 +1634,7 @@ bool UsbConfigured (void) {
 bool UsbTxReady(void)
 {
     DisableUsbIRQ ();
-    bool res = CMD.Configuration != 0 && ((txw + 1) & (txLen - 1)) != txr;
+    bool res = configurationSet && !suspended && ((txw + 1) & (txLen - 1)) != txr;
     EnableUsbIRQ ();
 
     return res;
@@ -1652,22 +1671,23 @@ void UsbTxFlush (void) {
 
 
 /* sendet ein Zeichen (d.h. schreibt es in den Tx-Buffer) */
-char UsbCharOut(char c)
+bool UsbCharOut(char c)
 {
-    int i;
+	while (true) {
+		DisableUsbIRQ ();
+	    if (!configurationSet || suspended) {
+	    	EnableUsbIRQ ();
+	    	return false;
+	    }
 
-    DisableUsbIRQ ();
-    if (CMD.Configuration == 0) {
-    	EnableUsbIRQ ();
-    	return -1;
-    }
-	EnableUsbIRQ ();
+	    if (((txw + 1) & (txLen - 1)) != txr)
+	    	break;
 
-    while (!UsbTxReady())
+		EnableUsbIRQ ();
         __asm__ volatile ("wfi"); /* trampeln auf der Stelle!! */
+	}
 
-    DisableUsbIRQ ();
-    i = (txw + 1) & (txLen - 1);
+    int i = (txw + 1) & (txLen - 1);
     UsbTxBuf[txw] = c;
     txw = i;
 
@@ -1679,20 +1699,12 @@ char UsbCharOut(char c)
 //    }
 	EnableUsbIRQ ();
 
-    return c;
+    return true;
 }
 
 /* asciiz zum USB senden */
 void UsbStrOut(char* S)
 {
-    DisableUsbIRQ ();
-    if (CMD.Configuration == 0) {
-    	EnableUsbIRQ ();
-    	return;
-    }
-	EnableUsbIRQ ();
-
-    while (*S)
-        UsbCharOut(*S++);
+    while (*S && UsbCharOut(*S++));
 }
 
