@@ -564,12 +564,27 @@ const uint8_t always0 = 0;
 
 /************  Hilfsroutinen ************************************************/
 
-void EnableUsbIRQ (void) {
+static void EnableUsbIRQ (void) {
     NVIC_ISER[USB_IRQ_NUMBER/32] = ((uint32_t) 1) << (USB_IRQ_NUMBER % 32);
 }
 
-void DisableUsbIRQ (void) {
+static void DisableUsbIRQ (void) {
     NVIC_ICER[USB_IRQ_NUMBER/32] = ((uint32_t) 1) << (USB_IRQ_NUMBER % 32);
+}
+
+static void EnableSOFIRQ (void) {
+    USB_CNTR =
+        CTRM |             /* Int bei ACKed Paketen in oder out */
+        RESETM |            /* Int bei Reset */
+		SUSPM | WKUPM | ESOFM |
+        SOFM;              /* Int bei 1 ms Frame */
+}
+
+static void DisableSOFIRQ (void) {
+    USB_CNTR =
+        CTRM |             /* Int bei ACKed Paketen in oder out */
+        RESETM |            /* Int bei Reset */
+		SUSPM | WKUPM | ESOFM;              /* Int bei 1 ms Frame */
 }
 
 void Stall(int physEpNum)
@@ -736,11 +751,7 @@ void InitEndpoints(void)
         logEpInt;
 
     USB_ISTR = 0;          /* pending Interrupts beseitigen */
-    USB_CNTR =
-        CTRM |             /* Int bei ACKed Paketen in oder out */
-        RESETM |            /* Int bei Reset */
-		SUSPM | WKUPM | ESOFM |
-        SOFM;              /* Int bei 1 ms Frame */
+    DisableSOFIRQ ();
     USB_SetAddress(0);
 }
 
@@ -1439,6 +1450,7 @@ void NAME_OF_USB_IRQ_HANDLER(void)
         USB_CNTR &= ~(FSUSP | LP_MODE);
         USB_ISTR = ~WKUP; /* Int löschen */
         suspended = false;
+        DisableSOFIRQ ();
     }
 
     if (I & SUSP) /* nach 3 ms Pause -->Suspend */
@@ -1447,6 +1459,7 @@ void NAME_OF_USB_IRQ_HANDLER(void)
         USB_ISTR = ~SUSP; /* Int löschen */
         suspended = true;
         USB_CNTR |= (FSUSP | LP_MODE);
+        EnableSOFIRQ ();
     }
 
     if (I & RESET) /* Bus Reset */
@@ -1464,6 +1477,7 @@ void NAME_OF_USB_IRQ_HANDLER(void)
         //trace("SOF\n");
         USB_ISTR = ~SOF; /* Int löschen */
         suspended = false;
+        DisableSOFIRQ ();
 //        OnEpBulkIn();  /* immer mal nachschauen... */
     }
 
@@ -1472,6 +1486,7 @@ void NAME_OF_USB_IRQ_HANDLER(void)
         trace("ESOF\n");
         USB_ISTR = ~ESOF; /* Int löschen */
         suspended = true;
+        EnableSOFIRQ ();
     }
 
     /* Endpoint Interrupts */
